@@ -45,6 +45,11 @@
 # test mode (./sonarr-bash-announce.sh -t) to generate one.
 
 ### Begin source
+# Check bash version
+if [[ -z "${BASH_VERSINFO}" ]] || [[ -z "${BASH_VERSINFO[0]}" ]] || [[ ${BASH_VERSINFO[0]} -lt "4" ]]; then
+	echo "This script requires Bash version >= 4"
+	exit 1
+fi
 # Define some variables
 version="1.0.0"
 pid="${$}"
@@ -56,111 +61,22 @@ config="${HOME}/.${config}-config"
 sonarrUrl="${sonarrUrl%/}"
 regex='http(s)?://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]'
 
-# Do a dependency check
-fail="0"
-req=("bash" "jq" "curl" "md5sum" "awk" "printf" "echo" "fold" "od" "tr")
-for i in "${req[@]}"; do
-	if ! which "${i}" >> /dev/null 2>&1; then
-		echo "Missing dependency \"${i}\""
-		fail="1"
-	fi
-done
-
-# Check bash version
-if [[ -z "${BASH_VERSINFO}" ]] || [[ -z "${BASH_VERSINFO[0]}" ]] || [[ ${BASH_VERSINFO[0]} -lt "4" ]]; then
-	echo "This script requires Bash version >= 4"
-	fail="1"
-fi
-
-# Check to see if config exists
-if [[ -e "${config}" ]]; then
-	# It does. Source it.
-	source "${config}"
-else
-	# It does not.
-	echo "Config does not exist. Generate one with the -g flag."
-	fail="1"
-fi
-# Check to see if Sonarr URL is actually a URL
-if ! [[ "${sonarrUrl}" =~ ${regex} ]]; then
-	echo "Sonarr URL invalid"
-	fail="1"
-fi
-# Check to see if our API key has been filled in
-if [[ -z "${sonarrApi}" ]]; then
-	echo "Sonarr API key blank"
-	fail="1"
-fi
-# Check to see if our Telegram Bot ID has been filled in
-if [[ -z "${telegramBotId}" ]]; then
-	echo "Telegram Bot ID blank"
-	fail="1"
-fi
-# Check to see if our Telegram Channel ID array has at least one item
-if [[ "${#telegramChannelId[@]}" -eq "0" ]]; then
-	echo "Telegram Channel ID blank"
-	fail="1"
-fi
-# Check to see if ours notes directory has been filled in
-if [[ -z "${notesDir}" ]]; then
-	echo "Notes Directory config option (notesDir) is empty"
-	fail="1"
-else
-	# Trim any trailing slashes
-	notesDir="${notesDir%/}"
-	# Check to make sure the directory exists
-	if ! [[ -d "${notesDir}" ]]; then
-		# It does not. Try to create it.
-		mkdir -p "${notesDir}"
-		if ! [[ -d "${notesDir}" ]]; then
-			# We failed to create it.
-			echo "Directory \"${notesDir}\" does not appear to exist, and cannot be created."
-			fail=1
-		fi
-	fi
-	# Try to write to the test directory
-	if [[ -d "${notesDir}" ]] && ! touch "${notesDir}/${pid}" >> /dev/null 2>&1; then
-		# We can't
-		echo "Unable to write to \"${notesDir}\""
-		fail=1
-	else
-		# We can
-		rm "${notesDir}/${pid}"
-	fi
-fi
-if [[ "${fail}" -eq "1" ]]; then
-	# Quit if we failed
-	exit 1
-fi
-
-# This will prevent the script from running more than one instance at a time,
-# by forcing any instances with a PID higher than the lowest PID to wait in line.
-# The line is sorted numerically, not first-come-first-serve. We'll re-check the
-# lock file every second to see if it's our turn yet.
-lockfile="${notesDir}/${0##*/}.lock"
-debugArr+=("lock: ${lockfile}")
-echo "${pid}" >> "${lockfile}"
-sleep 1
-turnToGo="$(sort -n "${lockfile}" | head -n 1)"
-while [[ "${turnToGo}" -ne "${pid}" ]]; do
-	sleep 1
-	turnToGo="$(sort -n "${lockfile}" | head -n 1)"
-done
-
 ## Define some functions
 # Lockfile handler on exit
 removeLock () {
 # Could be done with tools, but let's do it with pure bash
-readarray -t lineArr < "${lockfile}"
-if [[ "${#lockfile[@]}" -gt "1" ]]; then
-	while read i; do
-		if ! [[ "${i}" -eq "${pid}" ]]; then
-			echo "${i}" >> "${lockfile}.tmp"
-		fi
-	done < "${lockfile}"
-	mv "${lockfile}.tmp" "${lockfile}"
-else
-	rm "${lockfile}"
+if [[ -e "${lockfile}" ]]; then
+	readarray -t lineArr < "${lockfile}"
+	if [[ "${#lockfile[@]}" -gt "1" ]]; then
+		while read i; do
+			if ! [[ "${i}" -eq "${pid}" ]]; then
+				echo "${i}" >> "${lockfile}.tmp"
+			fi
+		done < "${lockfile}"
+		mv "${lockfile}.tmp" "${lockfile}"
+	else
+		rm "${lockfile}"
+	fi
 fi
 }
 
@@ -416,7 +332,7 @@ for i in "${sendArr1[@]}"; do
 done
 }
 
-# Everything is defined. Now let's do some stuff.
+# User functions
 if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 	# The script was started by a user, not by sonarr
 	case "${1,,}" in
@@ -514,6 +430,93 @@ if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 	esac
 fi
 
+
+## Check config options
+# Do a dependency check
+fail="0"
+req=("bash" "jq" "curl" "md5sum" "awk" "printf" "echo" "fold" "od" "tr")
+for i in "${req[@]}"; do
+	if ! which "${i}" >> /dev/null 2>&1; then
+		echo "Missing dependency \"${i}\""
+		fail="1"
+	fi
+done
+# Check to see if config exists
+if [[ -e "${config}" ]]; then
+	# It does. Source it.
+	source "${config}"
+else
+	# It does not.
+	echo "Config does not exist. Generate one with the -c flag."
+	fail="1"
+fi
+# Check to see if Sonarr URL is actually a URL
+if ! [[ "${sonarrUrl}" =~ ${regex} ]]; then
+	echo "Sonarr URL invalid"
+	fail="1"
+fi
+# Check to see if our API key has been filled in
+if [[ -z "${sonarrApi}" ]]; then
+	echo "Sonarr API key blank"
+	fail="1"
+fi
+# Check to see if our Telegram Bot ID has been filled in
+if [[ -z "${telegramBotId}" ]]; then
+	echo "Telegram Bot ID blank"
+	fail="1"
+fi
+# Check to see if our Telegram Channel ID array has at least one item
+if [[ "${#telegramChannelId[@]}" -eq "0" ]]; then
+	echo "Telegram Channel ID blank"
+	fail="1"
+fi
+# Check to see if ours notes directory has been filled in
+if [[ -z "${notesDir}" ]]; then
+	echo "Notes Directory config option (notesDir) is empty"
+	fail="1"
+else
+	# Trim any trailing slashes
+	notesDir="${notesDir%/}"
+	# Check to make sure the directory exists
+	if ! [[ -d "${notesDir}" ]]; then
+		# It does not. Try to create it.
+		mkdir -p "${notesDir}"
+		if ! [[ -d "${notesDir}" ]]; then
+			# We failed to create it.
+			echo "Directory \"${notesDir}\" does not appear to exist, and cannot be created."
+			fail=1
+		fi
+	fi
+	# Try to write to the test directory
+	if [[ -d "${notesDir}" ]] && ! touch "${notesDir}/${pid}" >> /dev/null 2>&1; then
+		# We can't
+		echo "Unable to write to \"${notesDir}\""
+		fail=1
+	else
+		# We can
+		rm "${notesDir}/${pid}"
+	fi
+fi
+if [[ "${fail}" -eq "1" ]]; then
+	# Quit if we failed
+	exit 1
+fi
+
+# This will prevent the script from running more than one instance at a time,
+# by forcing any instances with a PID higher than the lowest PID to wait in line.
+# The line is sorted numerically, not first-come-first-serve. We'll re-check the
+# lock file every second to see if it's our turn yet.
+lockfile="${notesDir}/${0##*/}.lock"
+debugArr+=("lock: ${lockfile}")
+echo "${pid}" >> "${lockfile}"
+sleep 1
+turnToGo="$(sort -n "${lockfile}" | head -n 1)"
+while [[ "${turnToGo}" -ne "${pid}" ]]; do
+	sleep 1
+	turnToGo="$(sort -n "${lockfile}" | head -n 1)"
+done
+
+## Everything is defined. Now let's do some stuff.
 # Define some new variables
 seriesTitle="${sonarr_series_title}"
 seriesSeason="${sonarr_episodefile_seasonnumber}"
