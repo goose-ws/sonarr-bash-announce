@@ -364,6 +364,15 @@ if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 		;;
 	-t)
 		encodedText="$(urlencode "<b>Subject</b>")%0A$(urlencode "This is a test.")"
+		# Check to see if config exists
+		if [[ -e "${config}" ]]; then
+			# It does. Source it.
+			source "${config}"
+		else
+			# It does not.
+			echo "Config does not exist. Generate one with the -c flag."
+			fail="1"
+		fi
 		for telegramChan in "${telegramChannelId[@]}"; do
 			curlReturn="$(curl -s "https://api.telegram.org/bot${telegramBotId}/sendMessage?chat_id=${telegramChan}&parse_mode=html&text=${encodedText}" 2>&1)"
 			if [[ "${?}" -ne "0" ]]; then
