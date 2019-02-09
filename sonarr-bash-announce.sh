@@ -342,7 +342,7 @@ for telegramChan in "${telegramChannelId[@]}"; do
 	fi
 done
 removeLock;
-exitDebug; #exit 0
+exit 0
 }
 
 # Pool multiple notifications for sending
@@ -434,7 +434,7 @@ if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 		echo "Config file created at: ${config}"
 		echo "Please fill it out and then re-run the script."
 		removeLock;
-		exitDebug; #exit 0
+		exit 0
 		;;
 	-h)
 		echo "Usage:"
@@ -444,7 +444,7 @@ if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 		echo "-u  Check for updates"
 		echo "-v  Print version number"
 		removeLock;
-		exitDebug; #exit 0
+		exit 0
 		;;
 	-t)
 		encodedText="$(urlencode "<b>Subject</b>")%0A$(urlencode "This is a test.")"
@@ -466,7 +466,7 @@ if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 			fi
 		done
 		removeLock;
-		exitDebug; #exit 0
+		exit 0
 		;;
 	-u)
 		echo "Checking for updates..."
@@ -499,12 +499,12 @@ if [[ "${#sonarr_eventtype}" -eq "0" ]]; then
 			echo "No updates available."
 		fi
 		removeLock;
-		exitDebug; #exit 0
+		exit 0
 		;;
 	-v)
 		echo "Version ${version}"
 		removeLock;
-		exitDebug; #exit 0
+		exit 0
 		;;
 	*)
 		echo "Invalid option. Use flag -h for help."
@@ -634,7 +634,7 @@ if [[ "${#seriesArr[@]}" -le "1" ]]; then
 		done
 		rm "${output}-buffer"
 		removeLock;
-		exitDebug; #exit 0
+		exit 0
 	else
 		# No pooled notifications for this series, so we can send a single notification
 		debugArr+=("[9] Output does not exist")
@@ -693,7 +693,7 @@ else
 				done
 				rm "${output}-buffer"
 				removeLock;
-				exitDebug; #exit 0
+				exit 0
 			else
 				debugArr+=("[23]")
 				sendSingleNotification;
@@ -758,7 +758,7 @@ else
 			done
 			rm "${output}-buffer"
 			removeLock;
-			exitDebug; #exit 0
+			exit 0
 		else
 			debugArr+=("[30]")
 			sendSingleNotification;
@@ -769,4 +769,4 @@ else
 	fi
 fi
 removeLock;
-exitDebug; #exit 0
+exit 0
