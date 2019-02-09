@@ -46,7 +46,6 @@
 
 ### Begin source
 # Define some variables
-( set -o posix ; set ) >> "/home/vpn/.sonarr/${$}.env"
 version="1.0.0"
 pid="${$}"
 dateEpoch="$(date +%s)"
